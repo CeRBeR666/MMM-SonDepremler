@@ -11,12 +11,12 @@ Module.register("MMM-SonDepremler", {
 	defaults: {
 		updateInterval: 60000,
 		retryDelay: 5000,
-		buyukluk : 4.0,
+		buyukluk: 4.0,
 	},
 
 	requiresVersion: "2.1.0", // Required version of MagicMirror
 
-	start: function() {
+	start: function () {
 		var self = this;
 		var dataRequest = null;
 		var dataNotification = null;
@@ -26,7 +26,7 @@ Module.register("MMM-SonDepremler", {
 
 		// Schedule update timer.
 		this.getData();
-		setInterval(function() {
+		setInterval(function () {
 			self.updateDom();
 		}, this.config.updateInterval);
 	},
@@ -37,20 +37,34 @@ Module.register("MMM-SonDepremler", {
 	 * get a URL request
 	 *
 	 */
-	getData: function() {
+	getData: function () {
 		var self = this;
 
-		var urlApi = "https://cors-anywhere.herokuapp.com/https://turkiyedepremapi.herokuapp.com/api?min=4.0";
+		var urlApi = "https://hasanadiguzel.com.tr/api/sondepremler";
 		var retry = true;
+		var donen = '';
 
 		var dataRequest = new XMLHttpRequest();
 		dataRequest.open("GET", urlApi, true);
-		dataRequest.onreadystatechange = function() {
+		dataRequest.onreadystatechange = function () {
 			console.log(this.readyState);
 			if (this.readyState === 4) {
 				console.log(this.status);
 				if (this.status === 200) {
-					self.processData(JSON.parse(this.response));
+					try {
+						var responseJson = JSON.parse(this.response);
+						if (responseJson && Array.isArray(responseJson.data)) {
+							var donen = responseJson.data.filter(function (obj) {
+								return obj.ml >= 3;
+							}).slice(0, 10);
+							self.processData(donen);
+						} else {
+							console.error("Beklenen 'result' dizisi yok.");
+							console.log("Tam JSON içeriği:", responseJson);
+						}
+					} catch (e) {
+						Log.error(self.name, "JSON parse veya filtre hatası: " + e);
+					}
 				} else if (this.status === 401) {
 					self.updateDom(self.config.animationSpeed);
 					Log.error(self.name, this.status);
@@ -73,19 +87,19 @@ Module.register("MMM-SonDepremler", {
 	 * argument delay number - Milliseconds before next update.
 	 *  If empty, this.config.updateInterval is used.
 	 */
-	scheduleUpdate: function(delay) {
+	scheduleUpdate: function (delay) {
 		var nextLoad = this.config.updateInterval;
 		if (typeof delay !== "undefined" && delay >= 0) {
 			nextLoad = delay;
 		}
-		nextLoad = nextLoad ;
+		nextLoad = nextLoad;
 		var self = this;
-		setTimeout(function() {
+		setTimeout(function () {
 			self.getData();
 		}, nextLoad);
 	},
 
-	getDom: function() {
+	getDom: function () {
 		var self = this;
 
 		// create element wrapper for show into the module
@@ -102,48 +116,48 @@ Module.register("MMM-SonDepremler", {
 			// Use translate function
 			//             this id defined in translations files
 			//labelDataRequest.innerHTML = this.translate("TITLE");
-			
+
 			//Buradan sonrası benim olay 
-			
+
 			var table = document.createElement("table");
 			table.setAttribute("class", "kucuk");
-			
+
 			var head = document.createElement("tr");
 			table.appendChild(head);
 			var baslikYer = document.createElement("td");
 			baslikYer.innerHTML = "Şehir - Yer";
 			head.appendChild(baslikYer);
-			
+
 			var baslikBuyukluk = document.createElement("td");
 			baslikBuyukluk.innerHTML = "Büyüklük";
 			head.appendChild(baslikBuyukluk);
-			
+
 			var baslikDerinlik = document.createElement("td");
 			baslikDerinlik.innerHTML = "Derinlik";
 			head.appendChild(baslikDerinlik);
-			
+
 			var BaslikTarih = document.createElement("td");
 			BaslikTarih.innerHTML = "Tarih - Saat";
 			head.appendChild(BaslikTarih);
-			
-			
-			for (i in this.dataRequest){			
+
+
+			for (i in this.dataRequest) {
 				var row = document.createElement("tr");
 				table.appendChild(row);
 				var depremYer = document.createElement("td");
-				depremYer.innerHTML = this.dataRequest[i].sehir + '/' +this.dataRequest[i].yer;
+				depremYer.innerHTML = this.dataRequest[i].yer;
 				row.appendChild(depremYer);
-				
+
 				var depremBuyukluk = document.createElement("td");
-				depremBuyukluk.innerHTML = this.dataRequest[i].buyukluk;
+				depremBuyukluk.innerHTML = this.dataRequest[i].ml;
 				row.appendChild(depremBuyukluk);
-				
+
 				var depremDerinlik = document.createElement("td");
-				depremDerinlik.innerHTML = this.dataRequest[i].derinlik;
+				depremDerinlik.innerHTML = this.dataRequest[i].derinlik_km;
 				row.appendChild(depremDerinlik);
-				
+
 				var depremTarih = document.createElement("td");
-				depremTarih.innerHTML = this.dataRequest[i].tarih + '/' +this.dataRequest[i].saat;
+				depremTarih.innerHTML = this.dataRequest[i].tarih + '/' + this.dataRequest[i].saat;
 				row.appendChild(depremTarih);
 			}
 			wrapper.appendChild(table);
@@ -163,7 +177,7 @@ Module.register("MMM-SonDepremler", {
 		return wrapper;
 	},
 
-	getScripts: function() {
+	getScripts: function () {
 		return [];
 	},
 
@@ -174,7 +188,7 @@ Module.register("MMM-SonDepremler", {
 	},
 
 	// Load translations files
-	getTranslations: function() {
+	getTranslations: function () {
 		//FIXME: This can be load a one file javascript definition
 		return {
 			en: "translations/en.json",
@@ -182,10 +196,10 @@ Module.register("MMM-SonDepremler", {
 		};
 	},
 
-	processData: function(data) {
+	processData: function (data) {
 		var self = this;
 		this.dataRequest = data;
-		if (this.loaded === false) { self.updateDom(self.config.animationSpeed) ; }
+		if (this.loaded === false) { self.updateDom(self.config.animationSpeed); }
 		this.loaded = true;
 
 		// the data if load
@@ -195,7 +209,7 @@ Module.register("MMM-SonDepremler", {
 
 	// socketNotificationReceived from helper
 	socketNotificationReceived: function (notification, payload) {
-		if(notification === "MMM-SonDepremler-NOTIFICATION_TEST") {
+		if (notification === "MMM-SonDepremler-NOTIFICATION_TEST") {
 			// set dataNotification
 			this.dataNotification = payload;
 			this.updateDom();
